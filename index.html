@@ -4,265 +4,63 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Reef Editor</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap');
-
-  :root {
-    --bg: #0a0e14;
-    --surface: #111720;
-    --surface2: #1a2130;
-    --border: #1e2d42;
-    --accent: #00d4ff;
-    --accent2: #7b61ff;
-    --text: #c8d8e8;
-    --text-dim: #4a6080;
-    --tab-h: 48px;
-    --toolbar-h: 52px;
-    --glow: 0 0 20px rgba(0,212,255,0.15);
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  html, body {
-    height: 100%;
-    overflow: hidden;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Syne', sans-serif;
-  }
-
-  #toolbar {
-    height: var(--toolbar-h);
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 16px;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-
-  #logo {
-    font-size: 16px;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    color: var(--accent);
-    text-shadow: var(--glow);
-    margin-right: 8px;
-    white-space: nowrap;
-  }
-
-  .tb-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: 'Syne', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 6px 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  .tb-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(0,212,255,0.07);
-  }
-  .tb-btn.accent {
-    border-color: var(--accent2);
-    color: var(--accent2);
-  }
-  .tb-btn.accent:hover { background: rgba(123,97,255,0.1); }
-
-  #save-status {
-    font-size: 12px;
-    color: var(--text-dim);
-    margin-left: auto;
-    white-space: nowrap;
-    font-family: 'JetBrains Mono', monospace;
-    flex-shrink: 0;
-  }
-  #save-status.saved { color: var(--accent); }
-
-  #tabs {
-    height: var(--tab-h);
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: flex-end;
-    padding: 0 12px;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-
-  .tab {
-    padding: 8px 16px;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    cursor: pointer;
-    border-radius: 6px 6px 0 0;
-    border: 1px solid transparent;
-    border-bottom: none;
-    transition: all 0.15s;
-    position: relative;
-    bottom: -1px;
-    background: transparent;
-  }
-  .tab:hover { color: var(--text); }
-  .tab.active {
-    background: var(--bg);
-    border-color: var(--border);
-    color: var(--accent);
-  }
-
-  #main {
-    display: flex;
-    height: calc(100vh - var(--toolbar-h) - var(--tab-h));
-    overflow: hidden;
-  }
-
-  #editor-pane {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    border-right: 2px solid var(--border);
-    min-width: 0;
-  }
-
-  #editor {
-    flex: 1;
-    width: 100%;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
-    line-height: 1.7;
-    padding: 20px;
-    border: none;
-    outline: none;
-    resize: none;
-    tab-size: 2;
-    -webkit-text-fill-color: var(--text);
-    caret-color: var(--accent);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  #preview-pane {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-
-  #preview-header {
-    height: 36px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    padding: 0 14px;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
-  #preview-label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-  }
-
-  .dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
-    animation: pulse 2s ease-in-out infinite;
-    margin-left: auto;
-  }
-  @keyframes pulse {
-    0%,100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-
-  #preview {
-    flex: 1;
-    border: none;
-    background: #fff;
-    width: 100%;
-  }
-
-  #resizer {
-    width: 4px;
-    background: var(--border);
-    cursor: col-resize;
-    flex-shrink: 0;
-    transition: background 0.15s;
-    z-index: 10;
-  }
-  #resizer:hover, #resizer.dragging { background: var(--accent); }
-
-  #editor::-webkit-scrollbar { width: 6px; }
-  #editor::-webkit-scrollbar-track { background: transparent; }
-  #editor::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  #editor-pane::after {
-    content: '';
-    display: block;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    opacity: 0.3;
-    flex-shrink: 0;
-  }
-
-  @media (max-width: 600px) {
-    #main { flex-direction: column; }
-    #editor-pane { border-right: none; border-bottom: 2px solid var(--border); }
-    #resizer { display: none; }
-  }
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div id="toolbar">
-  <span id="logo">🦑 REEF EDITOR</span>
+  <button id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Projects">☰</button>
+  <span id="logo">🦑 REEF</span>
+  <span id="project-name">—</span>
   <button class="tb-btn" onclick="runPreview()">▶ Run</button>
-  <button class="tb-btn accent" onclick="openInNewTab()">⤴ New Tab</button>
-  <button class="tb-btn" onclick="clearEditor()">✕ Clear</button>
+  <button class="tb-btn accent" onclick="openInNewTab()">⤴ Tab</button>
+  <button class="tb-btn" onclick="clearEditor()">✕</button>
   <span id="save-status">ready</span>
 </div>
 
-<div id="tabs">
-  <div class="tab active" onclick="switchTab('html')">HTML</div>
-  <div class="tab" onclick="switchTab('css')">CSS</div>
-  <div class="tab" onclick="switchTab('js')">JS</div>
-</div>
+<div id="body">
 
-<div id="main">
-  <div id="editor-pane">
-    <textarea id="editor" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
-  </div>
-  <div id="resizer"></div>
-  <div id="preview-pane">
-    <div id="preview-header">
-      <span id="preview-label">Live Preview</span>
-      <div class="dot"></div>
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <span>Projects</span>
+      <button id="new-project-btn" onclick="newProject()" title="New Project">+</button>
     </div>
-    <iframe id="preview" sandbox="allow-scripts allow-same-origin"></iframe>
+    <div id="project-list"></div>
   </div>
+
+  <div id="right">
+    <div id="tabs">
+      <div class="tab active" onclick="switchTab('html')">HTML</div>
+      <div class="tab" onclick="switchTab('css')">CSS</div>
+      <div class="tab" onclick="switchTab('js')">JS</div>
+    </div>
+    <div id="main">
+      <div id="editor-pane">
+        <textarea id="editor" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+      </div>
+      <div id="resizer"></div>
+      <div id="preview-pane">
+        <div id="preview-header">
+          <span id="preview-label">Preview</span>
+          <button class="vp-btn" onclick="setViewport(375, this)">📱 375</button>
+          <button class="vp-btn" onclick="setViewport(768, this)">tablet</button>
+          <button class="vp-btn" onclick="setViewport(1280, this)">desktop</button>
+          <button class="vp-btn active" onclick="setViewport(null, this)">full</button>
+          <div class="dot"></div>
+        </div>
+        <div id="preview-wrap">
+          <iframe id="preview" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
-  const DEFAULTS = {
-    html: `<!DOCTYPE html>
+  // ── DEFAULTS ──────────────────────────────────────────────────
+
+  const DEFAULT_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -272,8 +70,9 @@
 <body>
 
 </body>
-</html>`,
-    css: `/* === RESET === */
+</html>`;
+
+  const DEFAULT_CSS = `/* === RESET === */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -308,41 +107,171 @@ body {
   font-family: var(--font-body);
   line-height: 1.6;
   padding: var(--space-lg);
-}`,
-    js: `// Your JavaScript here\nconsole.log("Ready.");`
-  };
+}`;
 
-  const VOID_TAGS = new Set([
-    'area','base','br','col','embed','hr','img','input',
-    'link','meta','param','source','track','wbr'
-  ]);
+  const DEFAULT_JS = `// Your JavaScript here\nconsole.log("Ready.");`;
 
-  const PAIRS = { '(': ')', '[': ']', '{': '}', '"': '"', "'": "'" };
-  const CLOSE_CHARS = new Set([')', ']', '}', '"', "'", '>']);
+  // ── PROJECT STORAGE ───────────────────────────────────────────
 
-  const state = {
-    html: localStorage.getItem('reef_html') || DEFAULTS.html,
-    css:  localStorage.getItem('reef_css')  || DEFAULTS.css,
-    js:   localStorage.getItem('reef_js')   || DEFAULTS.js
-  };
+  function loadProjects() {
+    try { return JSON.parse(localStorage.getItem('reef_projects')) || {}; }
+    catch { return {}; }
+  }
+
+  function saveProjects(projects) {
+    try { localStorage.setItem('reef_projects', JSON.stringify(projects)); } catch {}
+  }
+
+  function getProjectData(id) {
+    const projects = loadProjects();
+    return projects[id] || { html: DEFAULT_HTML, css: DEFAULT_CSS, js: DEFAULT_JS };
+  }
+
+  function setProjectData(id, data) {
+    const projects = loadProjects();
+    projects[id] = data;
+    saveProjects(projects);
+  }
+
+  function getProjectList() {
+    try { return JSON.parse(localStorage.getItem('reef_project_list')) || []; }
+    catch { return []; }
+  }
+
+  function saveProjectList(list) {
+    try { localStorage.setItem('reef_project_list', JSON.stringify(list)); } catch {}
+  }
+
+  function getCurrentProjectId() {
+    try { return localStorage.getItem('reef_current_project') || null; } catch { return null; }
+  }
+
+  function setCurrentProjectId(id) {
+    try { localStorage.setItem('reef_current_project', id); } catch {}
+  }
+
+  // ── STATE ─────────────────────────────────────────────────────
 
   let currentTab = 'html';
+  let currentProjectId = null;
+  let editorState = { html: DEFAULT_HTML, css: DEFAULT_CSS, js: DEFAULT_JS };
   let saveTimer = null;
   let previewTimer = null;
+  let sidebarOpen = true;
 
-  const editor = document.getElementById('editor');
-  const preview = document.getElementById('preview');
+  const editor     = document.getElementById('editor');
+  const preview    = document.getElementById('preview');
   const saveStatus = document.getElementById('save-status');
+  const projName   = document.getElementById('project-name');
 
-  editor.value = state[currentTab];
-  runPreview();
+  // ── INIT ──────────────────────────────────────────────────────
+
+  function init() {
+    let list = getProjectList();
+    if (list.length === 0) {
+      const id = uid();
+      list = [{ id, name: 'My Project' }];
+      saveProjectList(list);
+      setProjectData(id, { html: DEFAULT_HTML, css: DEFAULT_CSS, js: DEFAULT_JS });
+    }
+    const savedId = getCurrentProjectId();
+    const validId = list.find(p => p.id === savedId) ? savedId : list[0].id;
+    renderProjectList();
+    loadProject(validId);
+  }
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  // ── PROJECT MANAGEMENT ────────────────────────────────────────
+
+  function newProject() {
+    const name = prompt('Project name:');
+    if (!name || !name.trim()) return;
+    const id = uid();
+    const list = getProjectList();
+    list.push({ id, name: name.trim() });
+    saveProjectList(list);
+    setProjectData(id, { html: DEFAULT_HTML, css: DEFAULT_CSS, js: DEFAULT_JS });
+    renderProjectList();
+    loadProject(id);
+  }
+
+  function renameProject(id) {
+    const list = getProjectList();
+    const project = list.find(p => p.id === id);
+    if (!project) return;
+    const name = prompt('New name:', project.name);
+    if (!name || !name.trim()) return;
+    project.name = name.trim();
+    saveProjectList(list);
+    renderProjectList();
+    if (id === currentProjectId) projName.textContent = project.name;
+  }
+
+  function deleteProject(id) {
+    const list = getProjectList();
+    if (list.length === 1) { alert("Can't delete the last project."); return; }
+    const project = list.find(p => p.id === id);
+    if (!confirm(`Delete "${project.name}"?`)) return;
+    const newList = list.filter(p => p.id !== id);
+    saveProjectList(newList);
+    const projects = loadProjects();
+    delete projects[id];
+    saveProjects(projects);
+    renderProjectList();
+    if (id === currentProjectId) loadProject(newList[0].id);
+  }
+
+  function loadProject(id) {
+    if (currentProjectId) {
+      editorState[currentTab] = editor.value;
+      setProjectData(currentProjectId, { ...editorState });
+    }
+    currentProjectId = id;
+    setCurrentProjectId(id);
+    editorState = getProjectData(id);
+    editor.value = editorState[currentTab];
+    const list = getProjectList();
+    const project = list.find(p => p.id === id);
+    projName.textContent = project ? project.name : '—';
+    renderProjectList();
+    runPreview();
+    updateSaveStatus('loaded');
+  }
+
+  function renderProjectList() {
+    const list = getProjectList();
+    const container = document.getElementById('project-list');
+    container.innerHTML = '';
+    list.forEach(({ id, name }) => {
+      const item = document.createElement('div');
+      item.className = 'project-item' + (id === currentProjectId ? ' active' : '');
+      item.innerHTML = `
+        <span class="project-item-name" title="${name}">${name}</span>
+        <div class="project-actions">
+          <button class="proj-btn" onclick="event.stopPropagation(); renameProject('${id}')" title="Rename">✏️</button>
+          <button class="proj-btn del" onclick="event.stopPropagation(); deleteProject('${id}')" title="Delete">🗑</button>
+        </div>`;
+      item.addEventListener('click', () => loadProject(id));
+      container.appendChild(item);
+    });
+  }
+
+  // ── SIDEBAR ───────────────────────────────────────────────────
+
+  function toggleSidebar() {
+    sidebarOpen = !sidebarOpen;
+    document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen);
+  }
 
   // ── TAB SWITCHING ─────────────────────────────────────────────
 
   function switchTab(tab) {
-    state[currentTab] = editor.value;
+    editorState[currentTab] = editor.value;
     currentTab = tab;
-    editor.value = state[tab];
+    editor.value = editorState[tab];
     document.querySelectorAll('.tab').forEach((t, i) => {
       t.classList.toggle('active', ['html','css','js'][i] === tab);
     });
@@ -351,28 +280,27 @@ body {
 
   // ── AUTOCOMPLETE ──────────────────────────────────────────────
 
+  const VOID_TAGS   = new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
+  const PAIRS       = { '(':')', '[':']', '{':'}', '"':'"', "'":"'" };
+  const CLOSE_CHARS = new Set([')',']','}','"',"'"]);
+
   editor.addEventListener('keydown', e => {
     const start = editor.selectionStart;
     const end   = editor.selectionEnd;
     const val   = editor.value;
 
-    // Tab → 2 spaces
     if (e.key === 'Tab') {
       e.preventDefault();
       spliceText('  ', start, end);
       return;
     }
 
-    // Auto-close brackets & quotes
     if (PAIRS[e.key]) {
       e.preventDefault();
       const close = PAIRS[e.key];
       if (start !== end) {
-        // Wrap selection
-        const sel = val.substring(start, end);
-        spliceText(e.key + sel + close, start, end, start + 1, end + 1);
+        spliceText(e.key + val.substring(start, end) + close, start, end, start + 1, end + 1);
       } else if (val[start] === close && e.key === close) {
-        // Skip over existing closing char
         editor.selectionStart = editor.selectionEnd = start + 1;
       } else {
         spliceText(e.key + close, start, end, start + 1, start + 1);
@@ -380,32 +308,25 @@ body {
       return;
     }
 
-    // Skip over auto-inserted closing char
-    if (CLOSE_CHARS.has(e.key) && val[start] === e.key && e.key !== '>') {
+    if (CLOSE_CHARS.has(e.key) && val[start] === e.key) {
       e.preventDefault();
       editor.selectionStart = editor.selectionEnd = start + 1;
       return;
     }
 
-    // Backspace: remove pair together
     if (e.key === 'Backspace' && start === end && start > 0) {
-      const prev = val[start - 1];
-      const next = val[start];
+      const prev = val[start - 1], next = val[start];
       if (PAIRS[prev] && PAIRS[prev] === next) {
         e.preventDefault();
         editor.value = val.substring(0, start - 1) + val.substring(start + 1);
         editor.selectionStart = editor.selectionEnd = start - 1;
-        onChange();
-        return;
+        onChange(); return;
       }
     }
 
-    // Enter: expand brackets with indented newline
     if (e.key === 'Enter' && start === end) {
-      const prev = val[start - 1];
-      const next = val[start];
-      const expandPairs = new Set(['{', '[', '(']);
-      if (expandPairs.has(prev) && PAIRS[prev] === next) {
+      const prev = val[start - 1], next = val[start];
+      if (['{','[','('].includes(prev) && PAIRS[prev] === next) {
         e.preventDefault();
         const lineStart = val.lastIndexOf('\n', start - 1) + 1;
         const indent = val.substring(lineStart).match(/^(\s*)/)[1];
@@ -416,23 +337,17 @@ body {
       }
     }
 
-    // HTML tag auto-close on '>'
     if (e.key === '>' && currentTab === 'html') {
       setTimeout(() => {
-        const v   = editor.value;
-        const pos = editor.selectionStart;
+        const v = editor.value, pos = editor.selectionStart;
         const before = v.substring(0, pos);
-        const tagMatch = before.match(/<([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>$/);
-        if (tagMatch) {
-          const tagName = tagMatch[1].toLowerCase();
-          const attrs   = tagMatch[2].trim();
-          const isClosingTag  = before.match(/<\/[a-zA-Z]/);
-          const isSelfClosing = attrs.endsWith('/');
-          if (!VOID_TAGS.has(tagName) && !isClosingTag && !isSelfClosing) {
-            const closing = `</${tagName}>`;
-            const after = v.substring(pos);
-            if (!after.startsWith(closing)) {
-              editor.value = v.substring(0, pos) + closing + after;
+        const m = before.match(/<([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>$/);
+        if (m) {
+          const tag = m[1].toLowerCase(), attrs = m[2].trim();
+          if (!VOID_TAGS.has(tag) && !before.match(/<\/[a-zA-Z]/) && !attrs.endsWith('/')) {
+            const closing = `</${tag}>`;
+            if (!v.substring(pos).startsWith(closing)) {
+              editor.value = v.substring(0, pos) + closing + v.substring(pos);
               editor.selectionStart = editor.selectionEnd = pos;
               onChange();
             }
@@ -447,16 +362,16 @@ body {
   editor.addEventListener('input', onChange);
 
   function onChange() {
-    state[currentTab] = editor.value;
+    editorState[currentTab] = editor.value;
     schedulePreview();
     scheduleSave();
   }
 
-  function spliceText(text, start, end, cursorStart, cursorEnd) {
+  function spliceText(text, start, end, cs, ce) {
     const val = editor.value;
     editor.value = val.substring(0, start) + text + val.substring(end);
-    editor.selectionStart = cursorStart !== undefined ? cursorStart : start + text.length;
-    editor.selectionEnd   = cursorEnd   !== undefined ? cursorEnd   : editor.selectionStart;
+    editor.selectionStart = cs !== undefined ? cs : start + text.length;
+    editor.selectionEnd   = ce !== undefined ? ce : editor.selectionStart;
     onChange();
   }
 
@@ -467,49 +382,76 @@ body {
 
   function scheduleSave() {
     clearTimeout(saveTimer);
-    saveStatus.textContent = 'unsaved...';
-    saveStatus.classList.remove('saved');
+    updateSaveStatus('unsaved');
     saveTimer = setTimeout(save, 1200);
   }
 
+  function updateSaveStatus(s) {
+    if (s === 'unsaved') {
+      saveStatus.textContent = 'unsaved...';
+      saveStatus.classList.remove('saved');
+    } else {
+      const now = new Date();
+      saveStatus.textContent = `saved ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+      saveStatus.classList.add('saved');
+    }
+  }
+
   function save() {
-    localStorage.setItem('reef_html', state.html);
-    localStorage.setItem('reef_css',  state.css);
-    localStorage.setItem('reef_js',   state.js);
-    const now = new Date();
-    saveStatus.textContent = `saved ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
-    saveStatus.classList.add('saved');
+    if (!currentProjectId) return;
+    editorState[currentTab] = editor.value;
+    setProjectData(currentProjectId, { ...editorState });
+    updateSaveStatus('saved');
   }
 
   function runPreview() {
-    const body = state.html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    const bodyContent = body ? body[1] : state.html;
-    const combined = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>${state.css}</style></head><body>${bodyContent}<script>${state.js}<\/script></body></html>`;
+    const body = editorState.html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const bodyContent = body ? body[1] : editorState.html;
+    const combined = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>${editorState.css}</style></head><body>${bodyContent}<script>${editorState.js}<\/script></body></html>`;
     preview.src = URL.createObjectURL(new Blob([combined], { type: 'text/html' }));
   }
 
   function openInNewTab() {
-    const body = state.html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    const bodyContent = body ? body[1] : state.html;
-    const combined = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>${state.css}</style></head><body>${bodyContent}<script>${state.js}<\/script></body></html>`;
+    const body = editorState.html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const bodyContent = body ? body[1] : editorState.html;
+    const combined = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>${editorState.css}</style></head><body>${bodyContent}<script>${editorState.js}<\/script></body></html>`;
     window.open(URL.createObjectURL(new Blob([combined], { type: 'text/html' })), '_blank');
   }
 
   function clearEditor() {
+    const defaults = { html: DEFAULT_HTML, css: DEFAULT_CSS, js: DEFAULT_JS };
     if (confirm(`Reset ${currentTab.toUpperCase()} to default?`)) {
-      state[currentTab] = DEFAULTS[currentTab];
-      editor.value = DEFAULTS[currentTab];
+      editorState[currentTab] = defaults[currentTab];
+      editor.value = defaults[currentTab];
       save();
       runPreview();
     }
   }
 
+  // ── VIEWPORT ──────────────────────────────────────────────────
+
+  function setViewport(width, btn) {
+    const wrap   = document.getElementById('preview-wrap');
+    const iframe = document.getElementById('preview');
+    if (width === null) {
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      wrap.style.alignItems = 'stretch';
+    } else {
+      iframe.style.width = width + 'px';
+      iframe.style.height = '100%';
+      wrap.style.alignItems = 'flex-start';
+    }
+    document.querySelectorAll('.vp-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+
   // ── RESIZER ───────────────────────────────────────────────────
 
-  const resizer    = document.getElementById('resizer');
-  const editorPane = document.getElementById('editor-pane');
-  const previewPane= document.getElementById('preview-pane');
-  let isResizing   = false;
+  const resizer     = document.getElementById('resizer');
+  const editorPane  = document.getElementById('editor-pane');
+  const previewPane = document.getElementById('preview-pane');
+  let isResizing    = false;
 
   resizer.addEventListener('mousedown', startResize);
   resizer.addEventListener('touchstart', startResize, { passive: true });
@@ -525,9 +467,9 @@ body {
 
   function doResize(e) {
     if (!isResizing) return;
-    const rect   = document.getElementById('main').getBoundingClientRect();
+    const rect    = document.getElementById('main').getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const pct    = Math.min(Math.max(((clientX - rect.left) / rect.width) * 100, 20), 80);
+    const pct     = Math.min(Math.max(((clientX - rect.left) / rect.width) * 100, 20), 80);
     editorPane.style.flex  = 'none';
     editorPane.style.width = pct + '%';
     previewPane.style.flex = '1';
@@ -541,6 +483,9 @@ body {
     document.removeEventListener('mouseup', stopResize);
     document.removeEventListener('touchend', stopResize);
   }
+
+  // ── GO ────────────────────────────────────────────────────────
+  init();
 </script>
 </body>
 </html>
