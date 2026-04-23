@@ -100,9 +100,13 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   flex-direction: column;
   flex-shrink: 0;
   transition: width 0.2s ease, opacity 0.2s ease;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 #sidebar.collapsed { width: 0; opacity: 0; pointer-events: none; }
+#sidebar::-webkit-scrollbar { width: 4px; }
+#sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 #sidebar-header {
   padding: 12px 10px 8px;
@@ -132,12 +136,10 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 #new-project-btn:hover { background: rgba(0,212,255,0.1); }
 
 #project-list {
-  flex: 1;
-  overflow-y: auto;
+  overflow-y: visible;
   padding: 6px 0;
+  flex-shrink: 0;
 }
-#project-list::-webkit-scrollbar { width: 4px; }
-#project-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
 .project-item {
   display: flex;
@@ -377,7 +379,7 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
-  max-height: 300px;
+  max-height: 260px;
   transition: max-height 0.2s ease;
 }
 #assets-panel.collapsed { max-height: 0; }
