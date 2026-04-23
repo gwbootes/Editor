@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Reef Editor</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="toolbar">
+  <button id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Projects">☰</button>
+  <span id="logo">🦑 REEF</span>
+  <span id="project-name">—</span>
+  <button class="tb-btn" onclick="runPreview()">▶ Run</button>
+  <button class="tb-btn accent" onclick="openInNewTab()">⤴ Tab</button>
+  <button class="tb-btn" onclick="clearEditor()">✕</button>
+  <span id="save-status">ready</span>
+</div>
+
+<div id="body">
+
+  <div id="sidebar">
+    <div id="sidebar-inner">
+      <div id="sidebar-header">
+        <span>Projects</span>
+        <button id="new-project-btn" onclick="newProject()" title="New Project">+</button>
+      </div>
+      <div id="project-list"></div>
+
+      <div id="assets-header" onclick="toggleAssets()">
+        <span>Assets</span>
+        <span id="assets-chevron">▸</span>
+      </div>
+      <div id="assets-panel" class="collapsed">
+        <div id="assets-path-row">
+          <input id="assets-repo" type="text" placeholder="owner/repo" value="gwbootes/Editor" spellcheck="false" autocorrect="off" autocapitalize="off" />
+          <button id="assets-fetch-btn" onclick="fetchAssets()">↻</button>
+        </div>
+        <div id="assets-breadcrumb"></div>
+        <div id="assets-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="right">
+    <div id="tabs">
+      <div class="tab active" onclick="switchTab('html')">HTML</div>
+      <div class="tab" onclick="switchTab('css')">CSS</div>
+      <div class="tab" onclick="switchTab('js')">JS</div>
+    </div>
+    <div id="main">
+      <div id="editor-pane">
+        <textarea id="editor" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+      </div>
+      <div id="resizer"></div>
+      <div id="preview-pane">
+        <div id="preview-header">
+          <span id="preview-label">Preview</span>
+          <button class="vp-btn" onclick="setViewport(375, this)">📱 375</button>
+          <button class="vp-btn" onclick="setViewport(768, this)">tablet</button>
+          <button class="vp-btn" onclick="setViewport(1280, this)">desktop</button>
+          <button class="vp-btn active" onclick="setViewport(null, this)">full</button>
+          <button class="vp-btn" id="preview-toggle" onclick="togglePreview()" title="Hide preview">⊠</button>
+          <div class="dot"></div>
+        </div>
+        <div id="preview-wrap">
+          <iframe id="preview" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── DEFAULTS ──────────────────────────────────────────────────
+
+  const DEFAULT_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Page</title>
+</head>
+<body>
+
+</body>
+</html>`;
+
+  const DEFAULT_CSS = `/* === RESET === */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+img, video {
+  max-width: 100%;
+  display: block;
+}
+
+/* === ROOT VARIABLES === */
+:root {
+  --color-bg: #ffffff;
+  --color-text: #111111;
+  --color-accent: #0077ff;
+
+  --font-body: sans-serif;
+  --font-display: sans-serif;
+
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 2rem;
+
+  --radius: 8px;
+}
+
+/* === BASE === */
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  padding: var(--space-lg);
+}`;
+
+  const DEFAULT_JS = `// Your JavaScript here\nconsole.log("Ready.");`;
+
+  // ── PROJECT STORAGE ───────────────────────────────────────────
+
+  function loadProjects() {
+    try { return JSON.parse(localStorage.getItem('reef_projects')) || {}; }
+    catch { return {}; }
+  }
+
+  function saveProjects(projects) {
+    try { localStorage.setItem('reef_projects', JSON.stringify(projects)); } catch {}
+  }
+
+  function getProjectData(id) {
+    const projects = loadProjects();
+    return projects[id] || { html: DEFAULT_HTML, css: DEFAULT_CSS, js: DEFAULT_JS };
+  }
+
+  function setProjectData(id, data) {
+    const projects = loadProjects();
+    projects[id] = data;
+    saveProjects(projects);
+  }
+
+  function getProjectList() {
+    try { return JSON.parse(localStorage.getItem('reef_project_list')) || []; }
+    catch { return []; }
+  }
+
+  function saveProjectList(list) {
+    try { localStorage.setItem('reef_project_list', JSON.stringify(list)); } catch {}
+  }
+
+  function getCurrentProjectId() {
+    try { return localStorage.getItem('reef_current_project') || null; } catch { return null; }
+  }
+
+  function setCurrentProjectId(id) {
+    try { localStorage.setItem('reef_current_project', id); } catch {}
+  }
+
+  // ── STATE ─────────────────────────────────────────────────────
+
+  let currentTab = 'html';
+  let currentProjectId = null;
+  let editorState = { html: DEFAULT_HTML, css: DEFAULT_CSS, js: DEFAULT_JS };
+  let saveTimer = null;
+  let previewTimer = null;
+  let sidebarOpen = true;
+
+  const editor     = document.getElementById('editor');
+  const preview    = document.getElementById('preview');
+  const saveStatus = document.getElementById('save-status');
+  const projName   = document.getElementById('project-name');
+
+  // ── INIT ──────────────────────────────────────────────────────
+
+  function init() {
+    let list = getProjectList();
+    if (list.length === 0) {
+      const id = uid();
+      list = [{ id, name: 'My Project' }];
+      saveProjectList(list);
+      setProjectData(id, { html: DEFAULT_HTML, css: DEFAULT_CSS, js: DEFAULT_JS });
+    }
+    const savedId = getCurrentProjectId();
+    const validId = list.find(p => p.id === savedId) ? savedId : list[0].id;
+    renderProjectList();
+    loadProject(validId);
+  }
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  // ── PROJECT MANAGEMENT ────────────────────────────────────────
+
+  function newProject() {
+    const name = prompt('Project name:');
+    if (!name || !name.trim()) return;
+    const id = uid();
+    const list = getProjectList();
+    list.push({ id, name: name.trim() });
+    saveProjectList(list);
+    setProjectData(id, { html: DEFAULT_HTML, css: DEFAULT_CSS, js: DEFAULT_JS });
+    renderProjectList();
+    loadProject(id);
+  }
+
+  function renameProject(id) {
+    const list = getProjectList();
+    const project = list.find(p => p.id === id);
+    if (!project) return;
+    const name = prompt('New name:', project.name);
+    if (!name || !name.trim()) return;
+    project.name = name.trim();
+    saveProjectList(list);
+    renderProjectList();
+    if (id === currentProjectId) projName.textContent = project.name;
+  }
+
+  function deleteProject(id) {
+    const list = getProjectList();
+    if (list.length === 1) { alert("Can't delete the last project."); return; }
+    const project = list.find(p => p.id === id);
+    if (!confirm(`Delete "${project.name}"?`)) return;
+    const newList = list.filter(p => p.id !== id);
+    saveProjectList(newList);
+    const projects = loadProjects();
+    delete projects[id];
+    saveProjects(projects);
+    renderProjectList();
+    if (id === currentProjectId) loadProject(newList[0].id);
+  }
+
+  function loadProject(id) {
+    if (currentProjectId) {
+      editorState[currentTab] = editor.value;
+      setProjectData(currentProjectId, { ...editorState });
+    }
+    currentProjectId = id;
+    setCurrentProjectId(id);
+    editorState = getProjectData(id);
+    editor.value = editorState[currentTab];
+    const list = getProjectList();
+    const project = list.find(p => p.id === id);
+    projName.textContent = project ? project.name : '—';
+    renderProjectList();
+    runPreview();
+    updateSaveStatus('loaded');
+  }
+
+  function renderProjectList() {
+    const list = getProjectList();
+    const container = document.getElementById('project-list');
+    container.innerHTML = '';
+    list.forEach(({ id, name }) => {
+      const item = document.createElement('div');
+      item.className = 'project-item' + (id === currentProjectId ? ' active' : '');
+      item.innerHTML = `
+        <span class="project-item-name" title="${name}">${name}</span>
+        <div class="project-actions">
+          <button class="proj-btn" onclick="event.stopPropagation(); renameProject('${id}')" title="Rename">✏️</button>
+          <button class="proj-btn del" onclick="event.stopPropagation(); deleteProject('${id}')" title="Delete">🗑</button>
+        </div>`;
+      item.addEventListener('click', () => loadProject(id));
+      container.appendChild(item);
+    });
+  }
+
+  // ── SIDEBAR ───────────────────────────────────────────────────
+
+  function toggleSidebar() {
+    sidebarOpen = !sidebarOpen;
+    document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen);
+  }
+
+  // ── TAB SWITCHING ─────────────────────────────────────────────
+
+  function switchTab(tab) {
+    editorState[currentTab] = editor.value;
+    currentTab = tab;
+    editor.value = editorState[tab];
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      t.classList.toggle('active', ['html','css','js'][i] === tab);
+    });
+    editor.focus();
+  }
+
+  // ── AUTOCOMPLETE ──────────────────────────────────────────────
+
+  const VOID_TAGS   = new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
+  const PAIRS       = { '(':')', '[':']', '{':'}', '"':'"', "'":"'" };
+  const CLOSE_CHARS = new Set([')',']','}','"',"'"]);
+
+  editor.addEventListener('keydown', e => {
+    const start = editor.selectionStart;
+    const end   = editor.selectionEnd;
+    const val   = editor.value;
+
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      spliceText('  ', start, end);
+      return;
+    }
+
+    if (PAIRS[e.key]) {
+      e.preventDefault();
+      const close = PAIRS[e.key];
+      if (start !== end) {
+        spliceText(e.key + val.substring(start, end) + close, start, end, start + 1, end + 1);
+      } else if (val[start] === close && e.key === close) {
+        editor.selectionStart = editor.selectionEnd = start + 1;
+      } else {
+        spliceText(e.key + close, start, end, start + 1, start + 1);
+      }
+      return;
+    }
+
+    if (CLOSE_CHARS.has(e.key) && val[start] === e.key) {
+      e.preventDefault();
+      editor.selectionStart = editor.selectionEnd = start + 1;
+      return;
+    }
+
+    if (e.key === 'Backspace' && start === end && start > 0) {
+      const prev = val[start - 1], next = val[start];
+      if (PAIRS[prev] && PAIRS[prev] === next) {
+        e.preventDefault();
+        editor.value = val.substring(0, start - 1) + val.substring(start + 1);
+        editor.selectionStart = editor.selectionEnd = start - 1;
+        onChange(); return;
+      }
+    }
+
+    if (e.key === 'Enter' && start === end) {
+      const prev = val[start - 1], next = val[start];
+      if (['{','[','('].includes(prev) && PAIRS[prev] === next) {
+        e.preventDefault();
+        const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+        const indent = val.substring(lineStart).match(/^(\s*)/)[1];
+        const inner = '\n' + indent + '  ';
+        const outer = '\n' + indent;
+        spliceText(inner + outer, start, end, start + inner.length, start + inner.length);
+        return;
+      }
+    }
+
+    if (e.key === '>' && currentTab === 'html') {
+      setTimeout(() => {
+        const v = editor.value, pos = editor.selectionStart;
+        const before = v.substring(0, pos);
+        const m = before.match(/<([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>$/);
+        if (m) {
+          const tag = m[1].toLowerCase(), attrs = m[2].trim();
+          if (!VOID_TAGS.has(tag) && !before.match(/<\/[a-zA-Z]/) && !attrs.endsWith('/')) {
+            const closing = `</${tag}>`;
+            if (!v.substring(pos).startsWith(closing)) {
+              editor.value = v.substring(0, pos) + closing + v.substring(pos);
+              editor.selectionStart = editor.selectionEnd = pos;
+              onChange();
+            }
+          }
+        }
+      }, 0);
+    }
+  });
+
+  // ── CORE ──────────────────────────────────────────────────────
+
+  editor.addEventListener('input', onChange);
+
+  function onChange() {
+    editorState[currentTab] = editor.value;
+    schedulePreview();
+    scheduleSave();
+  }
+
+  function spliceText(text, start, end, cs, ce) {
+    const val = editor.value;
+    editor.value = val.substring(0, start) + text + val.substring(end);
+    editor.selectionStart = cs !== undefined ? cs : start + text.length;
+    editor.selectionEnd   = ce !== undefined ? ce : editor.selectionStart;
+    onChange();
+  }
+
+  function schedulePreview() {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(runPreview, 600);
+  }
+
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    updateSaveStatus('unsaved');
+    saveTimer = setTimeout(save, 1200);
+  }
+
+  function updateSaveStatus(s) {
+    if (s === 'unsaved') {
+      saveStatus.textContent = 'unsaved...';
+      saveStatus.classList.remove('saved');
+    } else {
+      const now = new Date();
+      saveStatus.textContent = `saved ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+      saveStatus.classList.add('saved');
+    }
+  }
+
+  function save() {
+    if (!currentProjectId) return;
+    editorState[currentTab] = editor.value;
+    setProjectData(currentProjectId, { ...editorState });
+    updateSaveStatus('saved');
+  }
+
+  function runPreview() {
+    const body = editorState.html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const bodyContent = body ? body[1] : editorState.html;
+    const combined = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>${editorState.css}</style></head><body>${bodyContent}<script>${editorState.js}<\/script></body></html>`;
+    preview.src = URL.createObjectURL(new Blob([combined], { type: 'text/html' }));
+  }
+
+  function openInNewTab() {
+    const body = editorState.html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const bodyContent = body ? body[1] : editorState.html;
+    const combined = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>${editorState.css}</style></head><body>${bodyContent}<script>${editorState.js}<\/script></body></html>`;
+    window.open(URL.createObjectURL(new Blob([combined], { type: 'text/html' })), '_blank');
+  }
+
+  function clearEditor() {
+    const defaults = { html: DEFAULT_HTML, css: DEFAULT_CSS, js: DEFAULT_JS };
+    if (confirm(`Reset ${currentTab.toUpperCase()} to default?`)) {
+      editorState[currentTab] = defaults[currentTab];
+      editor.value = defaults[currentTab];
+      save();
+      runPreview();
+    }
+  }
+
+  // ── PREVIEW TOGGLE ────────────────────────────────────────────
+
+  let previewVisible = true;
+
+  function togglePreview() {
+    previewVisible = !previewVisible;
+    const pane = document.getElementById('preview-pane');
+    const resizer = document.getElementById('resizer');
+    const btn = document.getElementById('preview-toggle');
+    pane.style.display = previewVisible ? 'flex' : 'none';
+    resizer.style.display = previewVisible ? 'block' : 'none';
+    editorPane.style.flex = previewVisible ? '' : '1';
+    editorPane.style.width = previewVisible ? '' : '100%';
+    btn.textContent = previewVisible ? '⊠' : '⊞';
+    btn.title = previewVisible ? 'Hide preview' : 'Show preview';
+  }
+
+  // ── VIEWPORT ──────────────────────────────────────────────────
+
+  function setViewport(width, btn) {
+    const wrap   = document.getElementById('preview-wrap');
+    const iframe = document.getElementById('preview');
+    if (width === null) {
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      wrap.style.alignItems = 'stretch';
+    } else {
+      iframe.style.width = width + 'px';
+      iframe.style.height = '100%';
+      wrap.style.alignItems = 'flex-start';
+    }
+    document.querySelectorAll('.vp-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+
+  // ── RESIZER ───────────────────────────────────────────────────
+
+  const resizer     = document.getElementById('resizer');
+  const editorPane  = document.getElementById('editor-pane');
+  const previewPane = document.getElementById('preview-pane');
+  let isResizing    = false;
+
+  resizer.addEventListener('mousedown', startResize);
+  resizer.addEventListener('touchstart', startResize, { passive: true });
+
+  function startResize() {
+    isResizing = true;
+    resizer.classList.add('dragging');
+    document.addEventListener('mousemove', doResize);
+    document.addEventListener('touchmove', doResize, { passive: true });
+    document.addEventListener('mouseup', stopResize);
+    document.addEventListener('touchend', stopResize);
+  }
+
+  function doResize(e) {
+    if (!isResizing) return;
+    const rect    = document.getElementById('main').getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const pct     = Math.min(Math.max(((clientX - rect.left) / rect.width) * 100, 20), 80);
+    editorPane.style.flex  = 'none';
+    editorPane.style.width = pct + '%';
+    previewPane.style.flex = '1';
+  }
+
+  function stopResize() {
+    isResizing = false;
+    resizer.classList.remove('dragging');
+    document.removeEventListener('mousemove', doResize);
+    document.removeEventListener('touchmove', doResize);
+    document.removeEventListener('mouseup', stopResize);
+    document.removeEventListener('touchend', stopResize);
+  }
+
+  // ── ASSETS ────────────────────────────────────────────────────
+
+  let assetsOpen = false;
+  let assetsBreadcrumb = []; // array of {name, path}
+
+  function toggleAssets() {
+    assetsOpen = !assetsOpen;
+    document.getElementById('assets-panel').classList.toggle('collapsed', !assetsOpen);
+    document.getElementById('assets-chevron').textContent = assetsOpen ? '▾' : '▸';
+    if (assetsOpen && document.getElementById('assets-list').innerHTML === '') {
+      fetchAssets();
+    }
+  }
+
+  async function fetchAssets(subpath) {
+    const repo = document.getElementById('assets-repo').value.trim();
+    if (!repo) return;
+
+    const path = subpath || '';
+    const url = `https://api.github.com/repos/${repo}/contents/${path}`;
+    const list = document.getElementById('assets-list');
+    list.innerHTML = '<div class="asset-loading">Loading...</div>';
+
+    try {
+      const res = await fetch(url, { headers: { Accept: 'application/vnd.github.v3+json' } });
+      if (!res.ok) { list.innerHTML = '<div class="asset-error">Could not load. Check repo name.</div>'; return; }
+      const items = await res.json();
+
+      // Update breadcrumb
+      if (subpath) {
+        const parts = subpath.split('/');
+        assetsBreadcrumb = parts.map((name, i) => ({
+          name,
+          path: parts.slice(0, i + 1).join('/')
+        }));
+      } else {
+        assetsBreadcrumb = [];
+      }
+      renderBreadcrumb(repo);
+
+      // Render items
+      list.innerHTML = '';
+      const dirs = items.filter(i => i.type === 'dir');
+      const files = items.filter(i => i.type === 'file');
+
+      dirs.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'asset-item asset-dir';
+        el.innerHTML = `<span class="asset-icon">📁</span><span class="asset-name">${item.name}</span>`;
+        el.onclick = () => fetchAssets(item.path);
+        list.appendChild(el);
+      });
+
+      files.forEach(item => {
+        const rawUrl = `https://raw.githubusercontent.com/${repo}/main/${item.path}`;
+        const el = document.createElement('div');
+        el.className = 'asset-item asset-file';
+        el.innerHTML = `<span class="asset-icon">${assetIcon(item.name)}</span><span class="asset-name" title="${item.name}">${item.name}</span><button class="asset-copy" onclick="copyAssetUrl('${rawUrl}', event)" title="Copy URL">⎘</button>`;
+        list.appendChild(el);
+      });
+
+      if (dirs.length === 0 && files.length === 0) {
+        list.innerHTML = '<div class="asset-empty">Empty folder</div>';
+      }
+    } catch(e) {
+      list.innerHTML = '<div class="asset-error">Network error.</div>';
+    }
+  }
+
+  function renderBreadcrumb(repo) {
+    const bc = document.getElementById('assets-breadcrumb');
+    if (assetsBreadcrumb.length === 0) { bc.innerHTML = ''; return; }
+    let html = `<span class="bc-item" onclick="fetchAssets('')">root</span>`;
+    assetsBreadcrumb.forEach((crumb, i) => {
+      html += ` <span class="bc-sep">›</span> `;
+      if (i < assetsBreadcrumb.length - 1) {
+        html += `<span class="bc-item" onclick="fetchAssets('${crumb.path}')">${crumb.name}</span>`;
+      } else {
+        html += `<span class="bc-current">${crumb.name}</span>`;
+      }
+    });
+    bc.innerHTML = html;
+  }
+
+  function assetIcon(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    if (['jpg','jpeg','png','gif','webp','svg','avif'].includes(ext)) return '🖼';
+    if (['woff','woff2','ttf','otf','eot'].includes(ext)) return '🔤';
+    if (['mp4','webm','mov'].includes(ext)) return '🎬';
+    if (['mp3','wav','ogg'].includes(ext)) return '🔊';
+    if (['css'].includes(ext)) return '🎨';
+    if (['js'].includes(ext)) return '⚡';
+    if (['html','htm'].includes(ext)) return '📄';
+    return '📎';
+  }
+
+  function copyAssetUrl(url, e) {
+    e.stopPropagation();
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = e.target;
+      btn.textContent = '✓';
+      setTimeout(() => btn.textContent = '⎘', 1200);
+    }).catch(() => {
+      prompt('Copy this URL:', url);
+    });
+  }
+
+  // ── GO ────────────────────────────────────────────────────────
+  init();
+</script>
+</body>
+</html>
