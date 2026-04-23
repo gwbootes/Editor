@@ -26,6 +26,19 @@
       <button id="new-project-btn" onclick="newProject()" title="New Project">+</button>
     </div>
     <div id="project-list"></div>
+
+    <div id="assets-header" onclick="toggleAssets()">
+      <span>Assets</span>
+      <span id="assets-chevron">▸</span>
+    </div>
+    <div id="assets-panel" class="collapsed">
+      <div id="assets-path-row">
+        <input id="assets-repo" type="text" placeholder="owner/repo" value="gwbootes/Editor" spellcheck="false" autocorrect="off" autocapitalize="off" />
+        <button id="assets-fetch-btn" onclick="fetchAssets()">↻</button>
+      </div>
+      <div id="assets-breadcrumb"></div>
+      <div id="assets-list"></div>
+    </div>
   </div>
 
   <div id="right">
@@ -500,6 +513,113 @@ body {
     document.removeEventListener('touchmove', doResize);
     document.removeEventListener('mouseup', stopResize);
     document.removeEventListener('touchend', stopResize);
+  }
+
+  // ── ASSETS ────────────────────────────────────────────────────
+
+  let assetsOpen = false;
+  let assetsBreadcrumb = []; // array of {name, path}
+
+  function toggleAssets() {
+    assetsOpen = !assetsOpen;
+    document.getElementById('assets-panel').classList.toggle('collapsed', !assetsOpen);
+    document.getElementById('assets-chevron').textContent = assetsOpen ? '▾' : '▸';
+    if (assetsOpen && document.getElementById('assets-list').innerHTML === '') {
+      fetchAssets();
+    }
+  }
+
+  async function fetchAssets(subpath) {
+    const repo = document.getElementById('assets-repo').value.trim();
+    if (!repo) return;
+
+    const path = subpath || '';
+    const url = `https://api.github.com/repos/${repo}/contents/${path}`;
+    const list = document.getElementById('assets-list');
+    list.innerHTML = '<div class="asset-loading">Loading...</div>';
+
+    try {
+      const res = await fetch(url, { headers: { Accept: 'application/vnd.github.v3+json' } });
+      if (!res.ok) { list.innerHTML = '<div class="asset-error">Could not load. Check repo name.</div>'; return; }
+      const items = await res.json();
+
+      // Update breadcrumb
+      if (subpath) {
+        const parts = subpath.split('/');
+        assetsBreadcrumb = parts.map((name, i) => ({
+          name,
+          path: parts.slice(0, i + 1).join('/')
+        }));
+      } else {
+        assetsBreadcrumb = [];
+      }
+      renderBreadcrumb(repo);
+
+      // Render items
+      list.innerHTML = '';
+      const dirs = items.filter(i => i.type === 'dir');
+      const files = items.filter(i => i.type === 'file');
+
+      dirs.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'asset-item asset-dir';
+        el.innerHTML = `<span class="asset-icon">📁</span><span class="asset-name">${item.name}</span>`;
+        el.onclick = () => fetchAssets(item.path);
+        list.appendChild(el);
+      });
+
+      files.forEach(item => {
+        const rawUrl = `https://raw.githubusercontent.com/${repo}/main/${item.path}`;
+        const el = document.createElement('div');
+        el.className = 'asset-item asset-file';
+        el.innerHTML = `<span class="asset-icon">${assetIcon(item.name)}</span><span class="asset-name" title="${item.name}">${item.name}</span><button class="asset-copy" onclick="copyAssetUrl('${rawUrl}', event)" title="Copy URL">⎘</button>`;
+        list.appendChild(el);
+      });
+
+      if (dirs.length === 0 && files.length === 0) {
+        list.innerHTML = '<div class="asset-empty">Empty folder</div>';
+      }
+    } catch(e) {
+      list.innerHTML = '<div class="asset-error">Network error.</div>';
+    }
+  }
+
+  function renderBreadcrumb(repo) {
+    const bc = document.getElementById('assets-breadcrumb');
+    if (assetsBreadcrumb.length === 0) { bc.innerHTML = ''; return; }
+    let html = `<span class="bc-item" onclick="fetchAssets('')">root</span>`;
+    assetsBreadcrumb.forEach((crumb, i) => {
+      html += ` <span class="bc-sep">›</span> `;
+      if (i < assetsBreadcrumb.length - 1) {
+        html += `<span class="bc-item" onclick="fetchAssets('${crumb.path}')">${crumb.name}</span>`;
+      } else {
+        html += `<span class="bc-current">${crumb.name}</span>`;
+      }
+    });
+    bc.innerHTML = html;
+  }
+
+  function assetIcon(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    if (['jpg','jpeg','png','gif','webp','svg','avif'].includes(ext)) return '🖼';
+    if (['woff','woff2','ttf','otf','eot'].includes(ext)) return '🔤';
+    if (['mp4','webm','mov'].includes(ext)) return '🎬';
+    if (['mp3','wav','ogg'].includes(ext)) return '🔊';
+    if (['css'].includes(ext)) return '🎨';
+    if (['js'].includes(ext)) return '⚡';
+    if (['html','htm'].includes(ext)) return '📄';
+    return '📎';
+  }
+
+  function copyAssetUrl(url, e) {
+    e.stopPropagation();
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = e.target;
+      btn.textContent = '✓';
+      setTimeout(() => btn.textContent = '⎘', 1200);
+    }).catch(() => {
+      prompt('Copy this URL:', url);
+    });
   }
 
   // ── GO ────────────────────────────────────────────────────────
